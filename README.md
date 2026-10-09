@@ -1,62 +1,40 @@
-# Bài 1: Khảo sát FHS và Phân quyền File/Folder nâng cao
+# Bài 1: Quản lý người dùng giới hạn và Truyền tải dữ liệu qua SFTP trên Windows
 
-## Mục tiêu
-- Nắm vững cấu trúc thư mục tiêu chuẩn theo FHS (Filesystem Hierarchy Standard) trên Linux.
-- Thực hành phân quyền tập tin và thư mục với chmod (phân quyền OCTAL) và chown nâng cao.
+## 1. Yêu cầu
+Tạo tài khoản người dùng giới hạn phục vụ cho các tác vụ truyền nhận tệp tin từ xa, kết nối SFTP bằng phần mềm client trên Windows và tải tệp tin log từ máy chủ về.
 
----
+## 2. Các bước thực hiện trên VPS
 
-## 1. Khảo sát Cấu trúc Thư mục FHS (Filesystem Hierarchy Standard)
+1. **Khởi tạo tài khoản người dùng:**
+   ```bash
+   sudo adduser sftp-user
+   ```
 
-| Thư mục | Mục đích sử dụng |
-| :--- | :--- |
-| `/etc` | Chứa các tệp tin cấu hình hệ thống (Nginx, SSH, Sysctl, v.v.). |
-| `/var/log` | Chứa các tệp tin nhật ký hoạt động (System logs, App logs, Web logs). |
-| `/bin` & `/usr/bin` | Chứa các lệnh thực thi nhị phân cơ bản cho người dùng hệ thống. |
-| `/opt` | Chứa các phần mềm và ứng dụng của bên thứ 3 (Third-party applications). |
-| `/home` | Thư mục cá nhân của người dùng thông thường trong hệ thống. |
+2. **Tạo thư mục log giả lập và gán quyền đọc:**
+   ```bash
+   sudo mkdir -p /var/log/app-backup/
+   sudo touch /var/log/app-backup/backup-check.log
+   sudo bash -c 'echo "Backup status: SUCCESS at $(date)" > /var/log/app-backup/backup-check.log'
+   sudo chown -R root:sftp-user /var/log/app-backup
+   sudo chmod 750 /var/log/app-backup
+   sudo chmod 640 /var/log/app-backup/backup-check.log
+   ```
 
----
+3. **Kiểm tra thông tin:**
+   ```bash
+   id sftp-user
+   ls -l /var/log/app-backup/backup-check.log
+   ```
 
-## 2. Các Bước Thực hiện Phân quyền Nâng cao
+## 3. Kết nối SFTP trên Windows (Sử dụng Bitvise SSH Client / WinSCP)
+1. Mở phần mềm SFTP Client.
+2. Điền IP của VPS vào ô Host.
+3. Điền `sftp-user` vào ô Username.
+4. Chọn Method là Password và nhập mật khẩu đã tạo.
+5. Khi kết nối thành công, truy cập vào thư mục `/var/log/app-backup/` ở khung Remote files.
+6. Kéo thả tệp `backup-check.log` sang thư mục máy tính ở khung Local files.
 
-### Bước 1: Khởi tạo thư mục và tệp tin dự án
-```bash
-sudo mkdir -p /opt/secure-app/
-sudo touch /opt/secure-app/config.env
-sudo touch /opt/secure-app/app.py
-```
+## 4. Báo cáo kết quả
+*(Học viên chèn ảnh chụp màn hình giao diện kết nối SFTP từ Windows đã kết nối thành công và tải được file log về máy tính cá nhân tại đây)*
 
-### Bước 2: Thiết lập quyền sở hữu và phân quyền truy cập
-```bash
-# Gán quyền sở hữu cho user sysadmin và group devops
-sudo chown -R sysadmin:devops /opt/secure-app
-
-# Cấu hình phân quyền chmod (OCTAL)
-# 750 cho thư mục /opt/secure-app (rwxr-x---)
-sudo chmod 750 /opt/secure-app
-
-# 640 cho config.env (rw-r----) - Chỉ owner đọc/ghi, group chỉ đọc, người khác bị cấm
-sudo chmod 640 /opt/secure-app/config.env
-
-# 755 cho app.py (rwxr-xr-x) - Cho phép thực thi
-sudo chmod 755 /opt/secure-app/app.py
-```
-
----
-
-## 3. Kiểm tra Trạng thái (`ls -la /opt/secure-app`)
-
-```bash
-$ ls -la /opt/secure-app
-total 12
-drwxr-x--- 2 sysadmin devops 4096 Oct  7 11:15 .
-drwxr-xr-x 4 root     root   4096 Oct  7 11:14 ..
--rwxr-xr-x 1 sysadmin devops    0 Oct  7 11:15 app.py
--rw-r----- 1 sysadmin devops    0 Oct  7 11:15 config.env
-```
-
----
-
-## 4. Kết luận
-- Việc phân quyền theo chuẩn 750/640 giúp cô lập file cấu hình nhạy cảm `config.env`, ngăn chặn các user không thuộc nhóm `devops` đọc dữ liệu bí mật.
+![SFTP Connection Success Screenshot](./screenshot_sftp.png)
